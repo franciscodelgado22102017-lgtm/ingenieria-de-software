@@ -1,0 +1,18 @@
+function resetImage(){
+  $.ajax ({url: '/reset-image',
+	     cache: false,
+	     success: function (result) {
+		 $('#wrap-ajax-image').html(result);
+	     }
+	    });
+}
+
+function changeImage(){
+    alert("Hola mundo desde ajax")
+  $.ajax ({url: '/img-man.html',
+	     cache: false,
+	     success: function (result) {
+		 $('#contenido-imagen').html(result);
+	     }
+	    });
+}

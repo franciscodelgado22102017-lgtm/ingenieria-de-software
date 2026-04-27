@@ -1,0 +1,10 @@
+function suma(a ,b){
+    return a + b;
+}
+
+function principal(){
+    let resultado = suma(5,5);
+    console.log("El resultado es: " + resultado);
+}
+
+principal();

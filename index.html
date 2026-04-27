@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login - Biblioteca Digital</title>
+    <link href="./wwwroot/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="./wwwroot/css/bootstrap-icons.min.css">
+    <link href="./wwwroot/css/custom.css" rel="stylesheet">
+    <script src="./wwwroot/js/jquery-4.0.0.min.js"></script>
+    <script src="script.js"></script>
+</head>
+<body class="bg-gradient">
+    <div class="container">
+        <div class="row min-vh-100 align-items-center justify-content-center">
+            <div class="col-lg-5 col-md-7">
+                <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                    <div class="card-header bg-success text-white text-center py-4 border-0">
+                        <i class="bi bi-book-half fs-1"></i>
+                        <h2 class="mt-2 mb-0">Biblioteca Digital</h2>
+                        <p class="text-white-50 mb-0">Inicia sesión para continuar</p>
+                    </div>
+                    
+                    <div class="card-body p-5">
+                        <form id="form-login">
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-envelope-fill me-2"></i>Email
+                                </label>
+                                <input type="email" class="form-control form-control-lg" 
+                                       id="email" placeholder="correo@ejemplo.com" required>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-lock-fill me-2"></i>Contraseña
+                                </label>
+                                <input type="password" class="form-control form-control-lg" 
+                                       id="pwd" placeholder="Tu contraseña" required>
+                            </div>
+                            
+                            <button class="btn btn-success btn-lg w-100 rounded-pill" 
+                                    type="button" onclick="login();">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>Iniciar Sesión
+                            </button>
+                            
+                            <div class="text-center mt-4">
+                                <p class="mb-0">¿No tienes cuenta? 
+                                    <a href="registro.html" class="text-decoration-none fw-bold">
+                                        Regístrate aquí
+                                    </a>
+                                </p>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="alert-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1100"></div>
+
+    <script src="./wwwroot/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

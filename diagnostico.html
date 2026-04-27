@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Diagnóstico Completo</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        pre { background: #f0f0f0; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Diagnóstico del Sistema</h1>
+    
+    <div id="info">
+        <h2>Información del Entorno:</h2>
+        <pre id="env-info"></pre>
+    </div>
+    
+    <div>
+        <h2>Prueba 1: Verificar que jQuery funciona</h2>
+        <button onclick="testJQuery()">Probar jQuery</button>
+        <div id="test1"></div>
+    </div>
+    
+    <div>
+        <h2>Prueba 2: Probar conexión a PHP (GET)</h2>
+        <button onclick="testGET()">Probar GET</button>
+        <div id="test2"></div>
+    </div>
+    
+    <div>
+        <h2>Prueba 3: Probar registro (POST)</h2>
+        <button onclick="testRegistro()">Probar Registro</button>
+        <div id="test3"></div>
+    </div>
+    
+    <div>
+        <h2>Prueba 4: Verificar PHP</h2>
+        <button onclick="testPHP()">Probar PHP</button>
+        <div id="test4"></div>
+    </div>
+
+    <script>
+        // Mostrar información del entorno
+        document.getElementById('env-info').innerHTML = 
+            'URL actual: ' + window.location.href + '\n' +
+            'Protocolo: ' + window.location.protocol + '\n' +
+            'Host: ' + window.location.host + '\n' +
+            'Pathname: ' + window.location.pathname;
+        
+        function testJQuery() {
+            if (typeof $ !== 'undefined') {
+                document.getElementById('test1').innerHTML = 
+                    '<p class="success">✅ jQuery está cargado. Versión: ' + $.fn.jquery + '</p>';
+            } else {
+                document.getElementById('test1').innerHTML = 
+                    '<p class="error">❌ jQuery NO está cargado</p>';
+            }
+        }
+        
+        function testGET() {
+            document.getElementById('test2').innerHTML = '<p>Probando...</p>';
+            
+            $.ajax({
+                url: 'test_db.php',
+                type: 'GET',
+                timeout: 10000,
+                success: function(response) {
+                    document.getElementById('test2').innerHTML = 
+                        '<p class="success">✅ GET exitoso!</p>' +
+                        '<pre>' + response.substring(0, 500) + '</pre>';
+                },
+                error: function(xhr, status, error) {
+                    document.getElementById('test2').innerHTML = 
+                        '<p class="error">❌ Error en GET</p>' +
+                        '<p>Status: ' + status + '</p>' +
+                        '<p>Error: ' + error + '</p>' +
+                        '<p>Status code: ' + xhr.status + '</p>' +
+                        '<p>Respuesta: ' + (xhr.responseText || 'vacía') + '</p>';
+                }
+            });
+        }
+        
+        function testRegistro() {
+            document.getElementById('test3').innerHTML = '<p>Probando registro...</p>';
+            
+            var testData = {
+                nombre: 'Test_' + Date.now(),
+                email: 'test_' + Date.now() + '@test.com',
+                pwd: '123456'
+            };
+            
+            console.log('Enviando datos:', testData);
+            
+            $.ajax({
+                url: 'usuarios.php',
+                type: 'POST',
+                data: testData,
+                dataType: 'text',
+                timeout: 10000,
+                success: function(response) {
+                    console.log('Respuesta:', response);
+                    document.getElementById('test3').innerHTML = 
+                        '<p class="success">✅ Registro exitoso!</p>' +
+                        '<p>Respuesta: ' + response + '</p>';
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error completo:', {xhr, status, error});
+                    document.getElementById('test3').innerHTML = 
+                        '<p class="error">❌ Error en registro</p>' +
+                        '<p>Status: ' + status + '</p>' +
+                        '<p>Error: ' + error + '</p>' +
+                        '<p>Status code: ' + xhr.status + '</p>' +
+                        '<p>Respuesta del servidor: ' + (xhr.responseText || 'vacía') + '</p>' +
+                        '<p>ReadyState: ' + xhr.readyState + '</p>';
+                }
+            });
+        }
+        
+        function testPHP() {
+            document.getElementById('test4').innerHTML = '<p>Probando PHP...</p>';
+            
+            $.ajax({
+                url: 'usuarios.php',
+                type: 'POST',
+                data: {
+                    test: 'ping',
+                    action: 'test'
+                },
+                timeout: 5000,
+                success: function(response) {
+                    document.getElementById('test4').innerHTML = 
+                        '<p class="success">✅ PHP responde</p>' +
+                        '<p>Respuesta: ' + response + '</p>';
+                },
+                error: function(xhr, status, error) {
+                    document.getElementById('test4').innerHTML = 
+                        '<p class="error">❌ PHP no responde correctamente</p>' +
+                        '<p>Error: ' + error + '</p>' +
+                        '<p>Status: ' + status + '</p>';
+                }
+            });
+        }
+        
+        // Ejecutar prueba automática al cargar
+        $(document).ready(function() {
+            testJQuery();
+        });
+    </script>
+</body>
+</html>
