@@ -1,9 +1,6 @@
 <?php
-session_start();
-if (!isset($_SESSION['id_usuario'])) {
-    header("Location: index.html");
-    exit();
-}
+// home.php - Página principal (protegida)
+require_once 'check_auth.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -16,7 +13,7 @@ if (!isset($_SESSION['id_usuario'])) {
     <style>
         .hero-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 50vh;
+            min-height: 40vh;
             display: flex;
             align-items: center;
         }
@@ -38,6 +35,10 @@ if (!isset($_SESSION['id_usuario'])) {
                 Biblioteca Digital
             </a>
             <div class="ms-auto">
+                <span class="text-white me-3">
+                    <i class="bi bi-person-circle me-1"></i>
+                    <?php echo htmlspecialchars($_SESSION['username'] ?? 'Usuario'); ?>
+                </span>
                 <a href="logout.php" class="btn btn-outline-danger btn-sm">
                     <i class="bi bi-box-arrow-right me-1"></i>Cerrar Sesión
                 </a>
@@ -63,7 +64,7 @@ if (!isset($_SESSION['id_usuario'])) {
         </div>
     </div>
 
-    <div class="container mt-5">
+    <div class="container mt-5 mb-5">
         <div class="row g-4">
             <div class="col-md-6 col-lg-4">
                 <div class="card border-0 shadow-sm hover-card" onclick="window.location.href='libros.php'">
