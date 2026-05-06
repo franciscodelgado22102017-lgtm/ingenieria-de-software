@@ -1,4 +1,4 @@
-// script.js - Con manejo de cookies
+// script.js - Versión completa corregida
 function mostrarNotificacion(mensaje, tipo = 'success') {
     const alertContainer = document.getElementById('alert-container');
     if (!alertContainer) return;
@@ -57,14 +57,69 @@ function registroUsuarios() {
             }
         },
         error: function(xhr, status, error) {
-            console.error('Error AJAX:', error);
+            console.error('Error AJAX completo:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText
+            });
             mostrarNotificacion('Error al registrar usuario: ' + error, 'danger');
         }
     });
 }
 
-// Función para verificar si hay una cookie activa (para redirección automática)
-function verificarCookieActiva() {
-    // Esta función verifica si existe cookie y redirige
-    // Se puede llamar desde el login si es necesario
+function login() {
+    var email = document.getElementById('email').value;
+    var pwd = document.getElementById('pwd').value;
+    
+    if (!email || !pwd) {
+        mostrarNotificacion('Por favor complete todos los campos', 'danger');
+        return;
+    }
+    
+    $.ajax({
+        url: 'login.php',
+        type: 'POST',
+        data: {
+            email: email,
+            pwd: pwd
+        },
+        timeout: 30000,
+        success: function(response) {
+            console.log('Respuesta del servidor (login):', response);
+            if (response.trim() === 'success') {
+                mostrarNotificacion('¡Bienvenido! Redirigiendo...', 'success');
+                setTimeout(() => {
+                    window.location.href = 'home.php';
+                }, 1000);
+            } else {
+                mostrarNotificacion('Email o contraseña incorrectos', 'danger');
+                document.getElementById('pwd').value = '';
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error AJAX completo:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText
+            });
+            mostrarNotificacion('Error al iniciar sesión: ' + error, 'danger');
+        }
+    });
+}
+
+// ============ FUNCIONES FALTANTES PARA Ajax.html ============
+function changeImage() {
+    var contenido = document.getElementById('contenido-imagen');
+    if (contenido) {
+        contenido.innerHTML = '<img src="./wwwroot/img/man.png" class="img-fluid" style="height: 400px;">';
+        mostrarNotificacion('Imagen cambiada a hombre', 'info');
+    }
+}
+
+function resetImage() {
+    var contenido = document.getElementById('contenido-imagen');
+    if (contenido) {
+        contenido.innerHTML = '<img src="./wwwroot/img/woman.png" class="img-fluid" style="height: 400px;">';
+        mostrarNotificacion('Imagen reiniciada a mujer', 'success');
+    }
 }

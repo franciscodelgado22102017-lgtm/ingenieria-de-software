@@ -15,6 +15,6 @@ foreach ($cookie_names as $name) {
 }
 
 // Redirigir al login
-header("Location: index.php");
+header("Location: index.html");
 exit();
 ?>

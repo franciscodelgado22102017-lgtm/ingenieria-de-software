@@ -1,5 +1,5 @@
 <?php
-// db.php - Sin error_log
+// db.php - Versión mejorada
 function conectarDB() {
     $host = "localhost";
     $db = "biblioteca";
@@ -18,7 +18,8 @@ function conectarDB() {
     try {
         return new PDO($dsn, $user, $pass, $options);
     } catch (PDOException $e) {
-        die("Error de conexión con la base de datos. Detalle: " . $e->getMessage());
+        // Mejor no mostrar detalles internos al usuario
+        die("Error de conexión con la base de datos. Por favor contacte al administrador.");
     }
 }
 ?>
