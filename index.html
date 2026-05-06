@@ -1,3 +1,26 @@
+<?php
+// index.php - Página de login
+session_start();
+
+// Si ya está logueado, redirigir
+if (isset($_SESSION['id_usuario'])) {
+    header("Location: home.php");
+    exit();
+}
+
+// Verificar cookie existente
+if (isset($_COOKIE["id_usuario"])) {
+    $_SESSION['id_usuario'] = $_COOKIE["id_usuario"];
+    if (isset($_COOKIE["username"])) {
+        $_SESSION['username'] = $_COOKIE["username"];
+    }
+    if (isset($_COOKIE["user_email"])) {
+        $_SESSION['email'] = $_COOKIE["user_email"];
+    }
+    header("Location: home.php");
+    exit();
+}
+?>
 <!doctype html>
 <html lang="es">
 <head>
@@ -6,11 +29,24 @@
     <title>Login - Biblioteca Digital</title>
     <link href="./wwwroot/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="./wwwroot/css/bootstrap-icons.min.css">
-    <link href="./wwwroot/css/custom.css" rel="stylesheet">
     <script src="./wwwroot/js/jquery-4.0.0.min.js"></script>
-    <script src="script.js"></script>
+    <style>
+        .bg-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .alert-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1100;
+            min-width: 300px;
+        }
+    </style>
 </head>
 <body class="bg-gradient">
+    <div class="alert-container" id="alert-container"></div>
+    
     <div class="container">
         <div class="row min-vh-100 align-items-center justify-content-center">
             <div class="col-lg-5 col-md-7">
@@ -22,13 +58,13 @@
                     </div>
                     
                     <div class="card-body p-5">
-                        <form id="form-login">
+                        <form id="loginForm">
                             <div class="mb-4">
                                 <label class="form-label fw-bold">
                                     <i class="bi bi-envelope-fill me-2"></i>Email
                                 </label>
                                 <input type="email" class="form-control form-control-lg" 
-                                       id="email" placeholder="correo@ejemplo.com" required>
+                                       id="email" name="email" placeholder="correo@ejemplo.com" required>
                             </div>
                             
                             <div class="mb-4">
@@ -36,11 +72,17 @@
                                     <i class="bi bi-lock-fill me-2"></i>Contraseña
                                 </label>
                                 <input type="password" class="form-control form-control-lg" 
-                                       id="pwd" placeholder="Tu contraseña" required>
+                                       id="pwd" name="pwd" placeholder="Tu contraseña" required>
                             </div>
                             
-                            <button class="btn btn-success btn-lg w-100 rounded-pill" 
-                                    type="button" onclick="login();">
+                            <div class="mb-4 form-check">
+                                <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                                <label class="form-check-label" for="remember">
+                                    <i class="bi bi-check-circle me-1"></i>Recordarme por 30 días
+                                </label>
+                            </div>
+                            
+                            <button class="btn btn-success btn-lg w-100 rounded-pill" type="submit">
                                 <i class="bi bi-box-arrow-in-right me-2"></i>Iniciar Sesión
                             </button>
                             
@@ -58,8 +100,74 @@
         </div>
     </div>
 
-    <div id="alert-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1100"></div>
-
     <script src="./wwwroot/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function mostrarNotificacion(mensaje, tipo) {
+            const alertContainer = document.getElementById('alert-container');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${tipo} alert-dismissible fade show shadow`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `
+                <i class="bi bi-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'}-fill me-2"></i>
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            alertContainer.appendChild(alertDiv);
+            setTimeout(() => {
+                if (alertDiv && alertDiv.remove) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const pwd = document.getElementById('pwd').value;
+            const remember = document.getElementById('remember').checked ? 1 : 0;
+            
+            if (!email || !pwd) {
+                mostrarNotificacion('Por favor completa todos los campos', 'danger');
+                return;
+            }
+            
+            $.ajax({
+                url: 'login.php',
+                type: 'POST',
+                data: {
+                    email: email,
+                    pwd: pwd,
+                    remember: remember
+                },
+                dataType: 'text',
+                timeout: 30000,
+                success: function(response) {
+                    response = response.trim();
+                    if (response === 'success') {
+                        mostrarNotificacion('¡Bienvenido! Redirigiendo...', 'success');
+                        setTimeout(() => {
+                            window.location.href = 'home.php';
+                        }, 1000);
+                    } else if (response === 'error_password') {
+                        mostrarNotificacion('Contraseña incorrecta', 'danger');
+                        document.getElementById('pwd').value = '';
+                    } else if (response === 'error_usuario') {
+                        mostrarNotificacion('Usuario no encontrado', 'danger');
+                    } else if (response === 'error_campos_vacios') {
+                        mostrarNotificacion('Por favor completa todos los campos', 'danger');
+                    } else if (response === 'error_db') {
+                        mostrarNotificacion('Error en la base de datos', 'danger');
+                    } else {
+                        mostrarNotificacion('Error al iniciar sesión', 'danger');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error:', error);
+                    mostrarNotificacion('Error al conectar con el servidor', 'danger');
+                }
+            });
+        });
+    </script>
 </body>
 </html>
