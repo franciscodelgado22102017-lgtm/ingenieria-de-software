@@ -1,5 +1,5 @@
 <?php
-// usuarios.php - Sin warnings de permisos
+// usuarios.php - Registro de usuarios
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -13,6 +13,11 @@ $pwd = isset($_POST['pwd']) ? $_POST['pwd'] : '';
 
 if (empty($nombre) || empty($email) || empty($pwd)) {
     echo "Error: Campos vacíos";
+    exit();
+}
+
+if (strlen($pwd) < 6) {
+    echo "La contraseña debe tener al menos 6 caracteres";
     exit();
 }
 
@@ -45,6 +50,12 @@ try {
         $_SESSION['id_usuario'] = $id;
         $_SESSION['username'] = $nombre;
         $_SESSION['email'] = $email;
+        
+        // Opcional: crear cookie si se quiere recordar
+        $expiry = time() + (86400 * 30);
+        setcookie("id_usuario", $id, $expiry, "/");
+        setcookie("username", $nombre, $expiry, "/");
+        setcookie("user_email", $email, $expiry, "/");
         
         echo "success";
     } else {
