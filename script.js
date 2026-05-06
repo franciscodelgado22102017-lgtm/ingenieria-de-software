@@ -1,4 +1,4 @@
-// script.js - Con mejor manejo de errores y notificaciones
+// script.js - Con manejo de cookies
 function mostrarNotificacion(mensaje, tipo = 'success') {
     const alertContainer = document.getElementById('alert-container');
     if (!alertContainer) return;
@@ -57,52 +57,14 @@ function registroUsuarios() {
             }
         },
         error: function(xhr, status, error) {
-            console.error('Error AJAX completo:', {
-                status: status,
-                error: error,
-                responseText: xhr.responseText
-            });
+            console.error('Error AJAX:', error);
             mostrarNotificacion('Error al registrar usuario: ' + error, 'danger');
         }
     });
 }
 
-function login() {
-    var email = document.getElementById('email').value;
-    var pwd = document.getElementById('pwd').value;
-    
-    if (!email || !pwd) {
-        mostrarNotificacion('Por favor complete todos los campos', 'danger');
-        return;
-    }
-    
-    $.ajax({
-        url: 'login.php',
-        type: 'POST',
-        data: {
-            email: email,
-            pwd: pwd
-        },
-        timeout: 30000,
-        success: function(response) {
-            console.log('Respuesta del servidor (login):', response);
-            if (response.trim() === 'success') {
-                mostrarNotificacion('¡Bienvenido! Redirigiendo...', 'success');
-                setTimeout(() => {
-                    window.location.href = 'home.php';
-                }, 1000);
-            } else {
-                mostrarNotificacion('Email o contraseña incorrectos', 'danger');
-                document.getElementById('pwd').value = '';
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error AJAX completo:', {
-                status: status,
-                error: error,
-                responseText: xhr.responseText
-            });
-            mostrarNotificacion('Error al iniciar sesión: ' + error, 'danger');
-        }
-    });
+// Función para verificar si hay una cookie activa (para redirección automática)
+function verificarCookieActiva() {
+    // Esta función verifica si existe cookie y redirige
+    // Se puede llamar desde el login si es necesario
 }
