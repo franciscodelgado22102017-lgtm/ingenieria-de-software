@@ -1,5 +1,4 @@
 <?php
-// usuarios.php - Registro de usuarios
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -18,6 +17,11 @@ if (empty($nombre) || empty($email) || empty($pwd)) {
 
 if (strlen($pwd) < 6) {
     echo "La contraseña debe tener al menos 6 caracteres";
+    exit();
+}
+
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    echo "El email no es válido";
     exit();
 }
 
@@ -51,7 +55,7 @@ try {
         $_SESSION['username'] = $nombre;
         $_SESSION['email'] = $email;
         
-        // Opcional: crear cookie si se quiere recordar
+        // Crear cookies para mantener la sesión (30 días)
         $expiry = time() + (86400 * 30);
         setcookie("id_usuario", $id, $expiry, "/");
         setcookie("username", $nombre, $expiry, "/");

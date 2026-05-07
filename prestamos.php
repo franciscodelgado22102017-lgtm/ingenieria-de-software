@@ -1,29 +1,71 @@
 <?php
+// prestamos.php - Versión corregida con manejo de errores
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // No mostrar errores al usuario
+ini_set('log_errors', 1);
+
 session_start();
+
+// Verificar autenticación
 if (!isset($_SESSION['id_usuario'])) {
     header("Location: index.html");
     exit();
 }
+
 require_once 'db.php';
 
 $db = conectarDB();
 $mensaje = '';
 
+// Verificar que la tabla prestamos existe
+try {
+    $check = $db->query("SHOW TABLES LIKE 'prestamos'");
+    if ($check->rowCount() == 0) {
+        // Crear la tabla si no existe
+        $sql = "CREATE TABLE IF NOT EXISTS prestamos (
+            id_prestamo INT AUTO_INCREMENT PRIMARY KEY,
+            id_usuario INT NOT NULL,
+            id_libro INT NOT NULL,
+            fecha_prestamo DATE NOT NULL,
+            fecha_devolucion_esperada DATE NOT NULL,
+            fecha_devolucion_real DATE NULL,
+            estado VARCHAR(20) DEFAULT 'prestado',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+            FOREIGN KEY (id_libro) REFERENCES libros(id_libro) ON DELETE CASCADE
+        )";
+        $db->exec($sql);
+        $mensaje = '<div class="alert alert-info">Tabla de préstamos creada correctamente.</div>';
+    }
+} catch (Exception $e) {
+    $mensaje = '<div class="alert alert-danger">Error al verificar/crear tabla: ' . $e->getMessage() . '</div>';
+}
+
+// Verificar que libros tenga campo disponibles
+try {
+    $check = $db->query("SHOW COLUMNS FROM libros LIKE 'disponibles'");
+    if ($check->rowCount() == 0) {
+        $db->exec("ALTER TABLE libros ADD COLUMN disponibles INT DEFAULT 1");
+    }
+} catch (Exception $e) {
+    // Ignorar error si ya existe
+}
+
 // Procesar nuevo préstamo
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_prestamo')) {
-    $id_usuario = intval($_POST['id_usuario']);
-    $id_libro = intval($_POST['id_libro']);
-    $fecha_prestamo = date('Y-m-d');
-    $fecha_devolucion = !empty($_POST['fecha_devolucion']) ? $_POST['fecha_devolucion'] : date('Y-m-d', strtotime('+7 days'));
-    $estado = 'prestado';
-    
-    // Verificar que el libro esté disponible
-    $checkLibro = $db->prepare("SELECT disponibles FROM libros WHERE id_libro = :id_libro");
-    $checkLibro->execute(['id_libro' => $id_libro]);
-    $libro = $checkLibro->fetch();
-    
-    if ($libro && $libro['disponibles'] > 0) {
-        try {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_prestamo'])) {
+    try {
+        $id_usuario = intval($_POST['id_usuario']);
+        $id_libro = intval($_POST['id_libro']);
+        $fecha_prestamo = date('Y-m-d');
+        $fecha_devolucion = !empty($_POST['fecha_devolucion']) ? $_POST['fecha_devolucion'] : date('Y-m-d', strtotime('+7 days'));
+        $estado = 'prestado';
+        
+        // Verificar que el libro esté disponible
+        $checkLibro = $db->prepare("SELECT disponibles FROM libros WHERE id_libro = :id_libro");
+        $checkLibro->execute(['id_libro' => $id_libro]);
+        $libro = $checkLibro->fetch();
+        
+        if ($libro && $libro['disponibles'] > 0) {
             $db->beginTransaction();
             
             // Insertar préstamo
@@ -47,24 +89,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_prestamo'))
                         <i class="bi bi-check-circle-fill me-2"></i>✅ Préstamo registrado correctamente.
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>';
-        } catch (Exception $e) {
-            $db->rollBack();
-            $mensaje = '<div class="alert alert-danger">❌ Error al registrar préstamo: ' . $e->getMessage() . '</div>';
+        } else {
+            $mensaje = '<div class="alert alert-warning">⚠️ El libro no está disponible para préstamo.</div>';
         }
-    } else {
-        $mensaje = '<div class="alert alert-warning">⚠️ El libro no está disponible para préstamo.</div>';
+    } catch (Exception $e) {
+        if (isset($db) && $db->inTransaction()) {
+            $db->rollBack();
+        }
+        $mensaje = '<div class="alert alert-danger">❌ Error al registrar préstamo: ' . $e->getMessage() . '</div>';
     }
 }
 
 // Procesar devolución
 if (isset($_GET['devolver'])) {
-    $id_prestamo = intval($_GET['devolver']);
-    
     try {
+        $id_prestamo = intval($_GET['devolver']);
+        
         $db->beginTransaction();
         
         // Obtener el id_libro del préstamo
-        $getLibro = $db->prepare("SELECT id_libro FROM prestamos WHERE id_prestamo = :id_prestamo");
+        $getLibro = $db->prepare("SELECT id_libro FROM prestamos WHERE id_prestamo = :id_prestamo AND estado = 'prestado'");
         $getLibro->execute(['id_prestamo' => $id_prestamo]);
         $prestamo = $getLibro->fetch();
         
@@ -82,42 +126,62 @@ if (isset($_GET['devolver'])) {
                         <i class="bi bi-check-circle-fill me-2"></i>✅ Libro devuelto correctamente.
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>';
+        } else {
+            $db->rollBack();
+            $mensaje = '<div class="alert alert-warning">⚠️ El préstamo no existe o ya fue devuelto.</div>';
         }
     } catch (Exception $e) {
-        $db->rollBack();
-        $mensaje = '<div class="alert alert-danger">❌ Error al procesar devolución.</div>';
+        if (isset($db) && $db->inTransaction()) {
+            $db->rollBack();
+        }
+        $mensaje = '<div class="alert alert-danger">❌ Error al procesar devolución: ' . $e->getMessage() . '</div>';
     }
 }
 
-// Obtener lista de usuarios
-$usuarios = $db->query("SELECT id_usuario, nombre, email FROM usuarios ORDER BY nombre")->fetchAll();
+// Obtener datos para los selects (con manejo de errores)
+try {
+    $usuarios = $db->query("SELECT id_usuario, nombre, email FROM usuarios ORDER BY nombre")->fetchAll();
+} catch (Exception $e) {
+    $usuarios = [];
+    $mensaje .= '<div class="alert alert-danger">Error al cargar usuarios: ' . $e->getMessage() . '</div>';
+}
 
-// Obtener libros disponibles
-$librosDisponibles = $db->query("SELECT id_libro, titulo, isbn, disponibles FROM libros WHERE disponibles > 0 ORDER BY titulo")->fetchAll();
+try {
+    $librosDisponibles = $db->query("SELECT id_libro, titulo, isbn, disponibles FROM libros WHERE disponibles > 0 ORDER BY titulo")->fetchAll();
+} catch (Exception $e) {
+    $librosDisponibles = [];
+    $mensaje .= '<div class="alert alert-danger">Error al cargar libros: ' . $e->getMessage() . '</div>';
+}
 
-// Obtener préstamos activos
-$prestamosActivos = $db->query("
-    SELECT p.id_prestamo, p.fecha_prestamo, p.fecha_devolucion_esperada, p.estado,
-           u.nombre as usuario_nombre, u.email,
-           l.titulo as libro_titulo, l.isbn
-    FROM prestamos p
-    JOIN usuarios u ON p.id_usuario = u.id_usuario
-    JOIN libros l ON p.id_libro = l.id_libro
-    WHERE p.estado = 'prestado'
-    ORDER BY p.fecha_prestamo DESC
-")->fetchAll();
+try {
+    $prestamosActivos = $db->query("
+        SELECT p.id_prestamo, p.fecha_prestamo, p.fecha_devolucion_esperada, p.estado,
+               u.nombre as usuario_nombre, u.email,
+               l.titulo as libro_titulo, l.isbn
+        FROM prestamos p
+        JOIN usuarios u ON p.id_usuario = u.id_usuario
+        JOIN libros l ON p.id_libro = l.id_libro
+        WHERE p.estado = 'prestado'
+        ORDER BY p.fecha_prestamo DESC
+    ")->fetchAll();
+} catch (Exception $e) {
+    $prestamosActivos = [];
+}
 
-// Obtener historial de préstamos
-$historialPrestamos = $db->query("
-    SELECT p.id_prestamo, p.fecha_prestamo, p.fecha_devolucion_esperada, p.fecha_devolucion_real, p.estado,
-           u.nombre as usuario_nombre, u.email,
-           l.titulo as libro_titulo, l.isbn
-    FROM prestamos p
-    JOIN usuarios u ON p.id_usuario = u.id_usuario
-    JOIN libros l ON p.id_libro = l.id_libro
-    ORDER BY p.fecha_prestamo DESC
-    LIMIT 50
-")->fetchAll();
+try {
+    $historialPrestamos = $db->query("
+        SELECT p.id_prestamo, p.fecha_prestamo, p.fecha_devolucion_esperada, p.fecha_devolucion_real, p.estado,
+               u.nombre as usuario_nombre, u.email,
+               l.titulo as libro_titulo, l.isbn
+        FROM prestamos p
+        JOIN usuarios u ON p.id_usuario = u.id_usuario
+        JOIN libros l ON p.id_libro = l.id_libro
+        ORDER BY p.fecha_prestamo DESC
+        LIMIT 50
+    ")->fetchAll();
+} catch (Exception $e) {
+    $historialPrestamos = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -135,34 +199,13 @@ $historialPrestamos = $db->query("
             font-weight: 500;
             transition: all 0.3s;
         }
-        .nav-tabs .nav-link:hover {
-            color: #0d6efd;
-            background: transparent;
-        }
         .nav-tabs .nav-link.active {
             color: #0d6efd;
             border-bottom: 3px solid #0d6efd;
             background: transparent;
         }
-        .hover-shadow {
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .hover-shadow:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-        }
-        .estado-prestado {
-            background-color: #ffc107;
-            color: #000;
-        }
-        .estado-devuelto {
-            background-color: #198754;
-            color: #fff;
-        }
-        .table-responsive {
-            max-height: 500px;
-            overflow-y: auto;
-        }
+        .estado-prestado { background-color: #ffc107; color: #000; }
+        .estado-devuelto { background-color: #198754; color: #fff; }
     </style>
 </head>
 <body>
@@ -181,200 +224,76 @@ $historialPrestamos = $db->query("
     </nav>
 
     <div class="container mt-4">
-        <!-- Pestañas de navegación -->
         <ul class="nav nav-tabs mb-4">
-            <li class="nav-item">
-                <a class="nav-link" href="libros.php">
-                    <i class="bi bi-book-fill me-2"></i>Libros
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="autores.php">
-                    <i class="bi bi-people-fill me-2"></i>Autores
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link active" href="prestamos.php">
-                    <i class="bi bi-journal-arrow-up me-2"></i>Préstamos
-                </a>
-            </li>
+            <li class="nav-item"><a class="nav-link" href="libros.php"><i class="bi bi-book-fill me-2"></i>Libros</a></li>
+            <li class="nav-item"><a class="nav-link" href="autores.php"><i class="bi bi-people-fill me-2"></i>Autores</a></li>
+            <li class="nav-item"><a class="nav-link active" href="prestamos.php"><i class="bi bi-journal-arrow-up me-2"></i>Préstamos</a></li>
         </ul>
 
         <?php echo $mensaje; ?>
 
         <!-- Formulario registrar préstamo -->
-        <div class="card shadow-sm mb-4 border-0 hover-shadow">
+        <div class="card shadow-sm mb-4">
             <div class="card-header bg-primary text-white">
                 <i class="bi bi-plus-circle-fill me-2"></i>Registrar Nuevo Préstamo
             </div>
             <div class="card-body">
                 <form method="POST" class="row g-3">
                     <div class="col-md-4">
-                        <label class="form-label fw-bold">
-                            <i class="bi bi-person-fill me-1"></i>Usuario
-                        </label>
+                        <label class="form-label fw-bold">Usuario</label>
                         <select name="id_usuario" class="form-select" required>
                             <option value="">-- Selecciona un usuario --</option>
                             <?php foreach ($usuarios as $usuario): ?>
-                                <option value="<?= $usuario['id_usuario'] ?>">
-                                    <?= htmlspecialchars($usuario['nombre']) ?> (<?= htmlspecialchars($usuario['email']) ?>)
-                                </option>
+                                <option value="<?= $usuario['id_usuario'] ?>"><?= htmlspecialchars($usuario['nombre']) ?> (<?= htmlspecialchars($usuario['email']) ?>)</option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-bold">
-                            <i class="bi bi-book-fill me-1"></i>Libro
-                        </label>
+                        <label class="form-label fw-bold">Libro</label>
                         <select name="id_libro" class="form-select" required>
                             <option value="">-- Selecciona un libro --</option>
                             <?php foreach ($librosDisponibles as $libro): ?>
-                                <option value="<?= $libro['id_libro'] ?>">
-                                    <?= htmlspecialchars($libro['titulo']) ?> (Disponibles: <?= $libro['disponibles'] ?>)
-                                </option>
+                                <option value="<?= $libro['id_libro'] ?>"><?= htmlspecialchars($libro['titulo']) ?> (Disponibles: <?= $libro['disponibles'] ?>)</option>
                             <?php endforeach; ?>
                         </select>
-                        <?php if (count($librosDisponibles) == 0): ?>
-                            <div class="text-danger small">⚠️ No hay libros disponibles para préstamo</div>
-                        <?php endif; ?>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label fw-bold">
-                            <i class="bi bi-calendar-fill me-1"></i>Fecha Devolución
-                        </label>
-                        <input type="date" name="fecha_devolucion" class="form-control" 
-                               value="<?= date('Y-m-d', strtotime('+7 days')) ?>">
-                        <div class="form-text">Déjalo en blanco para 7 días</div>
+                        <label class="form-label fw-bold">Fecha Devolución</label>
+                        <input type="date" name="fecha_devolucion" class="form-control" value="<?= date('Y-m-d', strtotime('+7 days')) ?>">
                     </div>
                     <div class="col-md-1 d-flex align-items-end">
-                        <button type="submit" name="registrar_prestamo" class="btn btn-primary w-100" <?= count($librosDisponibles) == 0 ? 'disabled' : '' ?>>
-                            <i class="bi bi-save-fill fs-5"></i>
-                        </button>
+                        <button type="submit" name="registrar_prestamo" class="btn btn-primary w-100">+</button>
                     </div>
                 </form>
             </div>
         </div>
 
         <!-- Préstamos Activos -->
-        <div class="card shadow-sm mb-4 border-0">
+        <div class="card shadow-sm mb-4">
             <div class="card-header bg-warning text-dark">
-                <i class="bi bi-clock-history me-2"></i>Préstamos Activos
-                <span class="badge bg-dark ms-2"><?= count($prestamosActivos) ?></span>
+                <i class="bi bi-clock-history me-2"></i>Préstamos Activos (<?= count($prestamosActivos) ?>)
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-dark">
-                            <tr>
-                                <th>ID</th>
-                                <th>Usuario</th>
-                                <th>Libro</th>
-                                <th>Fecha Préstamo</th>
-                                <th>Fecha Devolución</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
+                            <tr><th>ID</th><th>Usuario</th><th>Libro</th><th>Préstamo</th><th>Dev. Esperada</th><th>Estado</th><th>Acción</th></tr>
                         </thead>
                         <tbody>
                             <?php if (count($prestamosActivos) > 0): ?>
-                                <?php foreach ($prestamosActivos as $prestamo): ?>
+                                <?php foreach ($prestamosActivos as $p): ?>
                                 <tr>
-                                    <td><?= $prestamo['id_prestamo'] ?></td>
-                                    <td>
-                                        <strong><?= htmlspecialchars($prestamo['usuario_nombre']) ?></strong><br>
-                                        <small class="text-muted"><?= htmlspecialchars($prestamo['email']) ?></small>
-                                    </td>
-                                    <td><?= htmlspecialchars($prestamo['libro_titulo']) ?></td>
-                                    <td><?= date('d/m/Y', strtotime($prestamo['fecha_prestamo'])) ?></td>
-                                    <td>
-                                        <?php 
-                                        $fechaEsperada = new DateTime($prestamo['fecha_devolucion_esperada']);
-                                        $hoy = new DateTime();
-                                        $diasRestantes = $hoy->diff($fechaEsperada)->days;
-                                        $estaVencido = $fechaEsperada < $hoy;
-                                        ?>
-                                        <span class="badge <?= $estaVencido ? 'bg-danger' : 'bg-info' ?>">
-                                            <?= date('d/m/Y', strtotime($prestamo['fecha_devolucion_esperada'])) ?>
-                                            <?php if (!$estaVencido): ?>
-                                                (<?= $diasRestantes ?> días)
-                                            <?php else: ?>
-                                                (VENCIDO)
-                                            <?php endif; ?>
-                                        </span>
-                                    </td>
-                                    <td><span class="badge estado-prestado">Prestado</span></td>
-                                    <td>
-                                        <a href="?devolver=<?= $prestamo['id_prestamo'] ?>" 
-                                           class="btn btn-success btn-sm" 
-                                           onclick="return confirm('¿Registrar devolución de este libro?')">
-                                            <i class="bi bi-arrow-return-left"></i> Devolver
-                                        </a>
-                                     </td>
+                                    <td><?= $p['id_prestamo'] ?></td>
+                                    <td><?= htmlspecialchars($p['usuario_nombre']) ?><br><small><?= htmlspecialchars($p['email']) ?></small></td>
+                                    <td><?= htmlspecialchars($p['libro_titulo']) ?></td>
+                                    <td><?= date('d/m/Y', strtotime($p['fecha_prestamo'])) ?></td>
+                                    <td><?= date('d/m/Y', strtotime($p['fecha_devolucion_esperada'])) ?></td>
+                                    <td><span class="badge bg-warning">Prestado</span></td>
+                                    <td><a href="?devolver=<?= $p['id_prestamo'] ?>" class="btn btn-success btn-sm" onclick="return confirm('¿Registrar devolución?')">Devolver</a></td>
                                 </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <tr>
-                                    <td colspan="7" class="text-center py-5 text-muted">
-                                        <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                        <p>No hay préstamos activos en el sistema</p>
-                                        <small>Registra un nuevo préstamo usando el formulario superior</small>
-                                    </td>
-                                </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Historial de Préstamos -->
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-secondary text-white">
-                <i class="bi bi-archive-fill me-2"></i>Historial de Préstamos
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>ID</th>
-                                <th>Usuario</th>
-                                <th>Libro</th>
-                                <th>Préstamo</th>
-                                <th>Dev. Esperada</th>
-                                <th>Dev. Real</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (count($historialPrestamos) > 0): ?>
-                                <?php foreach ($historialPrestamos as $prestamo): ?>
-                                <tr>
-                                    <td><?= $prestamo['id_prestamo'] ?></td>
-                                    <td>
-                                        <strong><?= htmlspecialchars($prestamo['usuario_nombre']) ?></strong><br>
-                                        <small class="text-muted"><?= htmlspecialchars($prestamo['email']) ?></small>
-                                    </td>
-                                    <td><?= htmlspecialchars($prestamo['libro_titulo']) ?></td>
-                                    <td><?= date('d/m/Y', strtotime($prestamo['fecha_prestamo'])) ?></td>
-                                    <td><?= date('d/m/Y', strtotime($prestamo['fecha_devolucion_esperada'])) ?></td>
-                                    <td>
-                                        <?= $prestamo['fecha_devolucion_real'] ? date('d/m/Y', strtotime($prestamo['fecha_devolucion_real'])) : '—' ?>
-                                    </td>
-                                    <td>
-                                        <span class="badge <?= $prestamo['estado'] == 'devuelto' ? 'bg-success' : 'bg-warning' ?>">
-                                            <?= ucfirst($prestamo['estado']) ?>
-                                        </span>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr>
-                                    <td colspan="7" class="text-center py-5 text-muted">
-                                        <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                        <p>No hay historial de préstamos</p>
-                                    </td>
-                                </tr>
+                                <tr><td colspan="7" class="text-center py-4">No hay préstamos activos</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>

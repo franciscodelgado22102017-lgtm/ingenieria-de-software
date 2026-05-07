@@ -1,5 +1,4 @@
 <?php
-// login_debug.php - Versión que muestra errores
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
