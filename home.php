@@ -1,5 +1,4 @@
 <?php
-// home.php - Página principal (protegida)
 require_once 'check_auth.php';
 ?>
 <!DOCTYPE html>
