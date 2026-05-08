@@ -1,14 +1,11 @@
 <?php
-
 session_start();
 
-// Si ya está logueado por sesión, redirigir
 if (isset($_SESSION['id_usuario'])) {
     header("Location: home.php");
     exit();
 }
 
-// Verificar cookie existente y restaurar sesión
 if (isset($_COOKIE["id_usuario"]) && !empty($_COOKIE["id_usuario"])) {
     try {
         require_once 'db.php';
@@ -23,14 +20,9 @@ if (isset($_COOKIE["id_usuario"]) && !empty($_COOKIE["id_usuario"])) {
             $_SESSION['email'] = $usuario['email'];
             header("Location: home.php");
             exit();
-        } else {
-            // Cookie inválida, eliminarla
-            setcookie("id_usuario", "", time() - 3600, "/");
-            setcookie("username", "", time() - 3600, "/");
         }
     } catch (Exception $e) {
-        // Error en BD, eliminar cookie
-        setcookie("id_usuario", "", time() - 3600, "/");
+        // Error al verificar cookie
     }
 }
 ?>
@@ -43,7 +35,6 @@ if (isset($_COOKIE["id_usuario"]) && !empty($_COOKIE["id_usuario"])) {
     <link href="./wwwroot/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="./wwwroot/css/bootstrap-icons.min.css">
     <script src="./wwwroot/js/jquery-4.0.0.min.js"></script>
-    <script src="script.js"></script>
     <style>
         .bg-gradient {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -72,27 +63,6 @@ if (isset($_COOKIE["id_usuario"]) && !empty($_COOKIE["id_usuario"])) {
                     </div>
 
                     <div class="card-body p-5">
-                        <?php if (isset($_GET['error'])): ?>
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                <?php 
-                                    switch($_GET['error']) {
-                                        case 'campos_vacios':
-                                            echo 'Por favor completa todos los campos';
-                                            break;
-                                        case 'password_incorrecta':
-                                            echo 'Contraseña incorrecta';
-                                            break;
-                                        case 'usuario_no_encontrado':
-                                            echo 'Usuario no encontrado';
-                                            break;
-                                        default:
-                                            echo 'Error al iniciar sesión';
-                                    }
-                                ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        <?php endif; ?>
-
                         <form id="loginForm">
                             <div class="mb-4">
                                 <label class="form-label fw-bold">
@@ -111,7 +81,7 @@ if (isset($_COOKIE["id_usuario"]) && !empty($_COOKIE["id_usuario"])) {
                             </div>
 
                             <div class="mb-4 form-check">
-                                <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                                <input type="checkbox" class="form-check-input" id="remember" name="remember" value="1">
                                 <label class="form-check-label" for="remember">
                                     <i class="bi bi-check-circle me-1"></i>Recordarme por 30 días
                                 </label>
@@ -162,6 +132,8 @@ if (isset($_COOKIE["id_usuario"]) && !empty($_COOKIE["id_usuario"])) {
             const pwd = document.getElementById('pwd').value;
             const remember = document.getElementById('remember').checked ? 1 : 0;
 
+            console.log("Enviando login - Remember:", remember); // Para debug
+
             if (!email || !pwd) {
                 mostrarNotificacion('Por favor completa todos los campos', 'danger');
                 return;
@@ -178,6 +150,8 @@ if (isset($_COOKIE["id_usuario"]) && !empty($_COOKIE["id_usuario"])) {
                 dataType: 'text',
                 success: function(response) {
                     response = response.trim();
+                    console.log("Respuesta:", response);
+                    
                     if (response === 'success') {
                         mostrarNotificacion('¡Bienvenido! Redirigiendo...', 'success');
                         setTimeout(() => {
@@ -186,12 +160,10 @@ if (isset($_COOKIE["id_usuario"]) && !empty($_COOKIE["id_usuario"])) {
                     } else if (response === 'error_password') {
                         mostrarNotificacion('Contraseña incorrecta', 'danger');
                         document.getElementById('pwd').value = '';
-                    } else if (response === 'error_usuario') {
-                        mostrarNotificacion('Usuario no encontrado', 'danger');
                     } else if (response === 'error_campos_vacios') {
                         mostrarNotificacion('Por favor completa todos los campos', 'danger');
                     } else {
-                        mostrarNotificacion('Error al iniciar sesión', 'danger');
+                        mostrarNotificacion('Error al iniciar sesión: ' + response, 'danger');
                     }
                 },
                 error: function(xhr, status, error) {

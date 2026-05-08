@@ -55,7 +55,6 @@ try {
         $_SESSION['username'] = $nombre;
         $_SESSION['email'] = $email;
         
-        // Crear cookies para mantener la sesión (30 días)
         $expiry = time() + (86400 * 30);
         setcookie("id_usuario", $id, $expiry, "/");
         setcookie("username", $nombre, $expiry, "/");
